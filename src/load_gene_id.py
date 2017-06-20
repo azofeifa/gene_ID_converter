@@ -9,34 +9,62 @@ import time,numpy as np,sys
 import os
 PATH 	= "/".join(os.path.realpath(__file__).split("/")[:-2])
 class db:
-	def __init__(self, table=PATH+"/files/HUGO_table.tsv"):
+	def __init__(self, table=PATH+"/files/HUGO_table.tsv",verbose=False):
 		self.df 	= pd.read_csv(table,sep="\t")
 		'''make dictionaries for faster look ups
 		'''
+		self.verbose 			= verbose
 		self._make_relational_dictionaries()
 	def _make_relational_dictionaries(self):
 		st 		= time.clock()
-		self.V,self.E,self.R 	= dict(),dict(),dict()
-		print "making data structures...",;sys.stdout.flush();
+		self.V,self.E,self.R,self.AR 	= dict(),dict(),dict(),dict()
+		if self.verbose:
+			print "making data structures...",;sys.stdout.flush();
 		for i,row in self.df.iterrows():
-			self.V[row["Vega ID"]],self.E[row["Ensembl Gene ID"]],self.R[row["RefSeq IDs"]] 	= i,i,i
-		print "done (" + str(time.clock()-st)[:4] + " seconds)";sys.stdout.flush(); 
+			self.V[str(row["Vega ID"]).lower()],self.E[str(row["Ensembl Gene ID"]).lower()],self.R[str(row["RefSeq IDs"]).lower()] 	= i,i,i
+			self.AR[str(row["Approved Symbol"]).lower()] 	= i
+		if self.verbose:
+			print "done (" + str(time.clock()-st)[:4] + " seconds)";sys.stdout.flush(); 
 	def _grab(self, a):
-
+		a 	= a.lower()
 		if a in self.E:
-			return str(self.df.loc[self.E[a]][self.column])
+			return str(self.df.loc[self.E[a]][self.column]).upper()
 		if a in self.V:
-			return str(self.df.loc[self.V[a]][self.column])
+			return str(self.df.loc[self.V[a]][self.column]).title()
 		if a in self.R:
-			return str(self.df.loc[self.R[a]][self.column])
-		return "NaN"
+			return str(self.df.loc[self.R[a]][self.column]).title()
+		return "nan"
+	def mapToEnsembl(self, args):
+		st,vs = time.clock(),list()
+		if self.verbose:
+			print "\nmapping input IDS...",;sys.stdout.flush();
+		for a in args:
+			a 	= a.lower()
+			if a in self.E:
+				vs.append(a.upper())
+			if a in self.AR:
+				idx 	= self.AR[a]
+				vs.append(self.df.iloc[idx]["Ensembl Gene ID"])
+			else:
+				vs.append("nan")
 
+		vs = np.array(vs)
+		if self.verbose:
+			print "done (" + str(time.clock()-st)[:4] + " seconds)\n" 
+			if len(vs):
+				print "I was able to map",sum(vs!="nan"), "/",len(vs), "of your IDS\n"
+				print "I couldn't map: " + ",".join([args[i] for i,v in enumerate(vs) if v == "nan"])
+			else:
+				print "I wasn't able to map any of your IDS\n"
+		return np.array(filter(lambda x: x!= "nan", vs))
 	def map(self, args,out="Approved Symbol"):
 		st,self.column	= time.clock(), out
-		print "mapping input IDS...",;sys.stdout.flush();
+		if self.verbose:
+			print "mapping input IDS...",;sys.stdout.flush();
 		vs 				= np.array(map(self._grab, [a.split(".")[0] for a in args] ))
-		print "done (" + str(time.clock()-st)[:4] + " seconds)\n" 
-		print "I was able to map",sum(vs!="NaN"), "/",len(vs), "of your IDS\n"
+		if self.verbose:
+			print "done (" + str(time.clock()-st)[:4] + " seconds)\n" 
+			print "I was able to map",sum(vs!="nan"), "/",len(vs), "of your IDS\n"
 		return vs
 
 def main():
