@@ -42,7 +42,7 @@ class db:
 			a 	= a.lower()
 			if a in self.E:
 				vs.append(a.upper())
-			if a in self.AR:
+			elif a in self.AR:
 				idx 	= self.AR[a]
 				vs.append(self.df.iloc[idx]["Ensembl Gene ID"])
 			else:
@@ -56,7 +56,7 @@ class db:
 				print "I couldn't map: " + ",".join([args[i] for i,v in enumerate(vs) if v == "nan"])
 			else:
 				print "I wasn't able to map any of your IDS\n"
-		return np.array(filter(lambda x: x!= "nan", vs))
+		return np.array(vs)
 	def map(self, args,out="Approved Symbol"):
 		st,self.column	= time.clock(), out
 		if self.verbose:
